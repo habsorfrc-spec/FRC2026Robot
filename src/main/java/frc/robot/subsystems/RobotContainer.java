@@ -207,9 +207,9 @@ private void configureBindings() {
     // Drive default command
     driveSubsystem.setDefaultCommand(
             driveSubsystem.driveArcade(
-                    () -> -driverController.getLeftY()
+                    () -> -operatorController.getLeftY()
                             * DRIVE_SCALING,
-                    () -> -driverController.getRightX()
+                    () -> -operatorController.getRightX()
                             * ROTATION_SCALING
             )
     );
