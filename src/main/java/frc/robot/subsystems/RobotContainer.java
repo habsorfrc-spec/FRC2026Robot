@@ -19,210 +19,190 @@ import frc.robot.subsystems.BackIntakeSubsystem;
 
 public class RobotContainer {
 
-// Subsystems
-private final CANDriveSubsystem driveSubsystem = new CANDriveSubsystem();
-private final FuelSubsystem ballSubsystem = new FuelSubsystem();
-private final BackIntakeSubsystem backSubsystem = new BackIntakeSubsystem();
-private final ElevatorSubsystem elevSubsystem = new ElevatorSubsystem();
+        // Subsystems
+        private final CANDriveSubsystem driveSubsystem = new CANDriveSubsystem();
+        private final FuelSubsystem ballSubsystem = new FuelSubsystem();
+        private final BackIntakeSubsystem backSubsystem = new BackIntakeSubsystem();
+        private final ElevatorSubsystem elevSubsystem = new ElevatorSubsystem();
 
-// Controllers
-private final CommandXboxController driverController =
-        new CommandXboxController(DRIVER_CONTROLLER_PORT);
+        // Controllers
+        private final CommandXboxController driverController = new CommandXboxController(DRIVER_CONTROLLER_PORT);
 
-private final CommandXboxController operatorController =
-        new CommandXboxController(OPERATOR_CONTROLLER_PORT);
+        private final CommandXboxController operatorController = new CommandXboxController(OPERATOR_CONTROLLER_PORT);
 
-// Autonomous chooser
-private final SendableChooser<Command> autoChooser =
-        new SendableChooser<>();
+        // Autonomous chooser
+        private final SendableChooser<Command> autoChooser = new SendableChooser<>();
 
-public RobotContainer() {
+        public RobotContainer() {
 
-    configureBindings();
+                configureBindings();
 
-    /* =========================
-       BUILD YOUR AUTO COMMAND
-       ========================= */
+                /*
+                 * =========================
+                 * BUILD YOUR AUTO COMMAND
+                 * =========================
+                 */
 
-    Command driveForward1 =
-            driveSubsystem.driveDistance(2.0, 0.4);
+                Command driveForward1 = driveSubsystem.driveDistance(2.0, 0.4);
 
-    Command driveForward2 =
-            driveSubsystem.driveDistance(2.0, 0.4);
+                // Command driveForward2 = driveSubsystem.driveDistance(2.0, 0.4);
 
-    Command spin1 =
-            driveSubsystem.turnRelative(180);
+                Command spin1 = driveSubsystem.turnRelative(180);
 
-    Command spin2 =
-            driveSubsystem.turnRelative(180);
+                /*
+                 * Command spin2 = driveSubsystem.turnRelative(180);
+                 */
 
-    Command down =
-    backSubsystem.runOnce(
-        () -> backSubsystem.limbDown()
-    ).andThen(
-        new WaitCommand(2.0)
-    );
+                Command down = backSubsystem.runOnce(
+                                () -> backSubsystem.limbDown()).andThen(
+                                                new WaitCommand(2.0));
 
-    Command intake =
-            backSubsystem.runEnd(
-                    () -> backSubsystem.BackIntake(),
-                    () -> backSubsystem.stop()
-            ).withTimeout(4.0);
+                Command intake = backSubsystem.runEnd(
+                                () -> backSubsystem.BackIntake(),
+                                () -> backSubsystem.stop()).withTimeout(4.0);
 
-    Command shoot =
-            ballSubsystem.runEnd(
-                    () -> ballSubsystem.eject(),
-                    () -> ballSubsystem.stop()
-            ).withTimeout(3.0);
+                /*
+                 * Command shoot = ballSubsystem.runEnd(
+                 * () -> ballSubsystem.eject(),
+                 * () -> ballSubsystem.stop()).withTimeout(3.0);
+                 */
 
-    // Drive while intaking
-    Command driveAndIntake =
-            driveForward1.alongWith(intake);
+                Command climbUp = elevSubsystem.runEnd(
+                                () -> elevSubsystem.elevateUp(),
+                                () -> elevSubsystem.stop()).withTimeout(3.0);
 
-    // Full autonomous sequence
-    Command myAuto =
-            spin1
-                    .andThen(down)
-                    .andThen(driveAndIntake)
-                    .andThen(spin2)
-                    .andThen(driveForward2)
-                    .andThen(shoot);
+                Command climbDown = elevSubsystem.runEnd(
+                                () -> elevSubsystem.elevateDown(),
+                                () -> elevSubsystem.stop()).withTimeout(5.0);
 
-    /* =========================
-       ADD AUTO TO CHOOSER
-       ========================= */
+                // Drive while intaking
+                // Command driveAndIntake = driveForward1.alongWith(intake);
 
-    autoChooser.setDefaultOption(
-            "My Auto",
-            myAuto
-    );
+                // Full autonomous sequence
 
-    autoChooser.addOption(
-            "Example Auto",
-            Autos.exampleAuto(
-                    driveSubsystem,
-                    ballSubsystem
-            )
-    );
+                Command myAuto = spin1
+                                .andThen(down)
+                                .andThen(driveForward1)
+                                .andThen(climbUp)
+                                .andThen(climbDown);
 
-    // Show chooser on dashboard
-    SmartDashboard.putData(
-            "Auto Mode",
-            autoChooser
-    );
-}
+                /*
+                 * =========================
+                 * ADD AUTO TO CHOOSER
+                 * =========================
+                 */
 
-private void configureBindings() {
+                autoChooser.setDefaultOption(
+                                "My Auto",
+                                myAuto);
 
-    // Intake
-    operatorController.leftBumper()
-            .whileTrue(
-                    ballSubsystem.runEnd(
-                            () -> ballSubsystem.intake(),
-                            () -> ballSubsystem.stop()
-                    )
-            );
+                autoChooser.addOption(
+                                "Example Auto",
+                                Autos.exampleAuto(
+                                                driveSubsystem,
+                                                ballSubsystem));
 
-    // Reverse intake
-    operatorController.rightBumper()
-            .whileTrue(
-                    ballSubsystem.runEnd(
-                            () -> ballSubsystem.revIntake(),
-                            () -> ballSubsystem.stop()
-                    )
-            );
+                // Show chooser on dashboard
+                SmartDashboard.putData(
+                                "Auto Mode",
+                                autoChooser);
+        }
 
-    // Elevator up
-    operatorController.rightTrigger(0.1)
-            .whileTrue(
-                    elevSubsystem.runEnd(
-                            () -> elevSubsystem.elevateUp(),
-                            () -> elevSubsystem.stop()
-                    )
-            );
+        private void configureBindings() {
 
-    // Elevator down
-    operatorController.leftTrigger(0.1)
-            .whileTrue(
-                    elevSubsystem.runEnd(
-                            () -> elevSubsystem.elevateDown(),
-                            () -> elevSubsystem.stop()
-                    )
-            );
+                // Intake
+                operatorController.leftBumper()
+                                .whileTrue(
+                                                ballSubsystem.runEnd(
+                                                                () -> ballSubsystem.intake(),
+                                                                () -> ballSubsystem.stop()));
 
-    // Eject
-    operatorController.a()
-            .whileTrue(
-                    ballSubsystem.runEnd(
-                            () -> ballSubsystem.eject(),
-                            () -> ballSubsystem.stop()
-                    )
-            );
+                // Reverse intake
+                operatorController.rightBumper()
+                                .whileTrue(
+                                                ballSubsystem.runEnd(
+                                                                () -> ballSubsystem.revIntake(),
+                                                                () -> ballSubsystem.stop()));
 
-    // Back intake
-    operatorController.b()
-            .whileTrue(
-                    backSubsystem.runEnd(
-                            () -> backSubsystem.BackIntake(),
-                            () -> backSubsystem.stop()
-                    )
-            );
+                // Elevator up
+                operatorController.rightTrigger(0.1)
+                                .whileTrue(
+                                                elevSubsystem.runEnd(
+                                                                () -> elevSubsystem.elevateUp(),
+                                                                () -> elevSubsystem.stop()));
 
-    // Reverse back intake + intake
-    operatorController.x()
-            .whileTrue(
-                    backSubsystem.runEnd(
-                            () -> backSubsystem.revBackIntake(),
-                            () -> backSubsystem.stop()
-                    ).alongWith(
-                            ballSubsystem.runEnd(
-                                    () -> ballSubsystem.intake(),
-                                    () -> ballSubsystem.stop()
-                            )
-                    )
-            );
+                // Elevator down
+                operatorController.leftTrigger(0.1)
+                                .whileTrue(
+                                                elevSubsystem.runEnd(
+                                                                () -> elevSubsystem.elevateDown(),
+                                                                () -> elevSubsystem.stop()));
 
-    // Limb up
-    operatorController.povUp()
-            .whileTrue(
-                    new RunCommand(
-                            () -> backSubsystem.limbUp(),
-                            backSubsystem
-                    ).finallyDo(
-                            interrupted -> backSubsystem.stop()
-                    )
-            );
+                // Eject
+                operatorController.a()
+                                .whileTrue(
+                                                ballSubsystem.runEnd(
+                                                                () -> ballSubsystem.eject(),
+                                                                () -> ballSubsystem.stop()).alongWith(
+                                                                                backSubsystem.runEnd(
+                                                                                                () -> backSubsystem
+                                                                                                                .BackIntake(),
+                                                                                                () -> backSubsystem
+                                                                                                                .stop())));
 
-    // Limb down
-    operatorController.povDown()
-            .whileTrue(
-                    new RunCommand(
-                            () -> backSubsystem.limbDown(),
-                            backSubsystem
-                    ).finallyDo(
-                            interrupted -> backSubsystem.stop()
-                    )
-            );
+                // Back intake
+                operatorController.b()
+                                .whileTrue(
+                                                backSubsystem.runEnd(
+                                                                () -> backSubsystem.BackIntake(),
+                                                                () -> backSubsystem.stop()));
 
-    // Drive default command
-    driveSubsystem.setDefaultCommand(
-            driveSubsystem.driveArcade(
-                    () -> -operatorController.getLeftY()
-                            * DRIVE_SCALING,
-                    () -> -operatorController.getRightX()
-                            * ROTATION_SCALING
-            )
-    );
-}
+                // Reverse back intake + intake
+                operatorController.x()
+                                .whileTrue(
+                                                backSubsystem.runEnd(
+                                                                () -> backSubsystem.revBackIntake(),
+                                                                () -> backSubsystem.stop()).alongWith(
+                                                                                ballSubsystem.runEnd(
+                                                                                                () -> ballSubsystem
+                                                                                                                .intake(),
+                                                                                                () -> ballSubsystem
+                                                                                                                .stop())));
 
-/* =========================
-   RETURN AUTO TO ROBOT
-   ========================= */
+                // Limb up
+               operatorController.povUp()
+                                .whileTrue(
+                                                backSubsystem.runEnd(
+                                                                () -> backSubsystem.limbUp(),
+                                                                () -> backSubsystem.stop()));
 
-public Command getAutonomousCommand() {
+                // Limb down
+                operatorController.povDown()
+                                .whileTrue(
+                                                backSubsystem.runEnd(
+                                                                () -> backSubsystem.limbDown(),
+                                                                () -> backSubsystem.stop()));
 
-    return autoChooser.getSelected();
+                // Drive default command
+                driveSubsystem.setDefaultCommand(
+                                driveSubsystem.driveArcade(
+                                                () -> -operatorController.getLeftY()
+                                                                * DRIVE_SCALING,
+                                                () -> -operatorController.getRightX()
+                                                                * ROTATION_SCALING));
+                
+        }
 
-}
+        /*
+         * =========================
+         * RETURN AUTO TO ROBOT
+         * =========================
+         */
+
+        public Command getAutonomousCommand() {
+
+                return autoChooser.getSelected();
+
+        }
 
 }

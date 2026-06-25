@@ -36,6 +36,9 @@ public class FuelSubsystem extends SubsystemBase {
 
     private final VelocityVoltage shooterVelocityRequest = new VelocityVoltage(0);
 
+    private final edu.wpi.first.wpilibj.Timer pulseTimer = new edu.wpi.first.wpilibj.Timer();
+    private boolean pulseCycleStarted = false;
+
     private double intakeSetpoint = 0;
     private double feederSetpoint = 0;
     private double shooterSetpoint = 0; // ← added to track TalonFX target
@@ -60,10 +63,10 @@ public class FuelSubsystem extends SubsystemBase {
         intakePID = intakeLauncherRoller.getClosedLoopController();
 
         configureMotors();
-        SmartDashboard.putNumber("Shooter kP", 0.12);
+        SmartDashboard.putNumber("Shooter kP", 0.14);
         SmartDashboard.putNumber("Shooter kI", 0.0);
         SmartDashboard.putNumber("Shooter kD", 0.0);
-        SmartDashboard.putNumber("Shooter kV", 0.12);
+        SmartDashboard.putNumber("Shooter kV", 0.122);
 
         SmartDashboard.putNumber("Target Feeder RPM", 3000);
         SmartDashboard.putNumber("Target Intake RPM", 3000);
@@ -126,7 +129,7 @@ public class FuelSubsystem extends SubsystemBase {
 
         TalonFXConfiguration talonConfig = new TalonFXConfiguration();
 
-        talonConfig.Slot0.kP = SmartDashboard.getNumber("Shooter kP", 0.12);
+        talonConfig.Slot0.kP = SmartDashboard.getNumber("Shooter kP", 0.14);
         talonConfig.Slot0.kI = SmartDashboard.getNumber("Shooter kI", 0.0);
         talonConfig.Slot0.kD = SmartDashboard.getNumber("Shooter kD", 0.0);
         talonConfig.Slot0.kV = SmartDashboard.getNumber("Shooter kV", 0.12);
@@ -136,6 +139,7 @@ public class FuelSubsystem extends SubsystemBase {
 
     public void setPIDF() {
         // optional live tuning later
+        // עידן היה פה
     }
 
     /**
@@ -175,37 +179,52 @@ public class FuelSubsystem extends SubsystemBase {
     }
 
     public void eject() {
-
         double ejectRPM = SmartDashboard.getNumber("Target Shooter RPM", 3000);
-
         shooterSetpoint = ejectRPM;
 
-        // TalonFX PID via VelocityVoltage (rotations/sec)
-        shooterRoller.setControl(
-                shooterVelocityRequest.withVelocity(ejectRPM / 60.0));
+        // 1. Keep the main TalonFX shooter running at target speed
+        shooterRoller.setControl(shooterVelocityRequest.withVelocity(ejectRPM / 60.0));
 
-        // Only feed once shooter is up to speed
+        // 2. Check if the shooter is actually at speed (using the tighter 5% tolerance)
         if (launcherAtSpeed(ejectRPM)) {
-            reached_speed = true;
-            intakeSetpoint = ejectRPM;
-            feederSetpoint = ejectRPM;
 
-            intakePID.setReference(
-                    -ejectRPM,
-                    ControlType.kVelocity,
-                    ClosedLoopSlot.kSlot0);
+            // Start the clock for this feeding pulse cycle
+            if (!pulseCycleStarted) {
+                pulseTimer.restart();
+                pulseCycleStarted = true;
+            }
 
-            feederPID.setReference(
-                    -ejectRPM,
-                    ControlType.kVelocity,
-                    ClosedLoopSlot.kSlot0);
+            // 3. The Pulse Engine: 0.15s ON, 0.30s OFF (Total cycle = 0.45s)
+            if (pulseTimer.get() < 0.15) {
+                // PHASE 1: Drive the feeder and intake forward to launch a ball
+                reached_speed = true;
+                intakeSetpoint = ejectRPM;
+                feederSetpoint = ejectRPM;
+
+                intakePID.setReference(-ejectRPM, ControlType.kVelocity, ClosedLoopSlot.kSlot0);
+                feederPID.setReference(-ejectRPM, ControlType.kVelocity, ClosedLoopSlot.kSlot0);
+            } else if (pulseTimer.get() < 0.45) {
+                // PHASE 2: Mandatory stop to force a physical separation between balls
+                feederRoller.stopMotor();
+                intakeLauncherRoller.stopMotor();
+                feederSetpoint = 0;
+                intakeSetpoint = 0;
+            } else {
+                // PHASE 3: Reset the timer to initiate the next ball's feed cycle
+                pulseTimer.restart();
+            }
 
         } else {
+            // If the shooter drops below speed (e.g. down to 2200 RPM),
+            // instantly kill the cycle and freeze the feeder rollers.
+            pulseCycleStarted = false;
+            pulseTimer.stop();
 
             feederSetpoint = 0;
             feederRoller.stopMotor();
+            intakeLauncherRoller.stopMotor();
+            intakeSetpoint = 0;
         }
-
     }
 
     public void launch() {
@@ -227,13 +246,12 @@ public class FuelSubsystem extends SubsystemBase {
     }
 
     public boolean launcherAtSpeed(double targetRPM) {
-
-        // TalonFX velocity is rotations/sec → convert to RPM for comparison
         double currentRPM = shooterRoller.getVelocity().getValueAsDouble() * 60.0;
-        double d = Math.abs(currentRPM - targetRPM);
+        double error = Math.abs(currentRPM - targetRPM);
 
         if (reached_speed) {
-            if (d < targetRPM * 0.3) {
+            // If it drops more than 5% (150 RPM), pause the feeder!
+            if (error < targetRPM * 0.05) {
                 return true;
             } else {
                 reached_speed = false;
@@ -241,11 +259,16 @@ public class FuelSubsystem extends SubsystemBase {
             }
         }
 
-        return d < targetRPM * 0.05;
+        // Require it to be within 3% (90 RPM) before firing the very first ball
+        if (error < targetRPM * 0.03) {
+            reached_speed = true;
+            return true;
+        }
+
+        return false;
     }
 
     public void stop() {
-
         feederRoller.stopMotor();
         intakeLauncherRoller.stopMotor();
         shooterRoller.stopMotor();
@@ -253,6 +276,11 @@ public class FuelSubsystem extends SubsystemBase {
         feederSetpoint = 0;
         intakeSetpoint = 0;
         shooterSetpoint = 0;
+
+        // Reset the pulse tracking
+        pulseCycleStarted = false;
+        pulseTimer.stop();
+        pulseTimer.reset();
     }
 
     public Command spinUpCommand() {
@@ -268,7 +296,7 @@ public class FuelSubsystem extends SubsystemBase {
 
         TalonFXConfiguration talonConfig = new TalonFXConfiguration();
 
-        double kP = SmartDashboard.getNumber("Shooter kP", 0.12);
+        double kP = SmartDashboard.getNumber("Shooter kP", 0.14);
         double kI = SmartDashboard.getNumber("Shooter kI", 0.0);
         double kD = SmartDashboard.getNumber("Shooter kD", 0.0);
         double kV = SmartDashboard.getNumber("Shooter kV", 0.12);
@@ -289,7 +317,6 @@ public class FuelSubsystem extends SubsystemBase {
             lastKD = kD;
             lastKV = kV;
         }
-
 
         SmartDashboard.putNumber("Feeder Velocity", feederEncoder.getVelocity());
         SmartDashboard.putNumber("Launcher Velocity", intakeEncoder.getVelocity());

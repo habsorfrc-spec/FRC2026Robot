@@ -45,7 +45,7 @@ public class ElevatorSubsystem extends SubsystemBase {
     public void elevateDown() {
         double pos = leader.getPosition().getValueAsDouble();
 
-        if (pos > 0.5) { // lower limit
+        if (pos > -1) { // lower limit
             leader.setControl(duty.withOutput(-0.6));
             follower.setControl(duty.withOutput(-0.6));
         } else {
