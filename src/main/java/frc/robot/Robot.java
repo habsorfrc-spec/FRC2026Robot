@@ -46,14 +46,15 @@ public class Robot extends TimedRobot {
     HAL.report(tResourceType.kResourceType_Framework, 10);
     CameraServer.startAutomaticCapture("camera", 0); // id is what you set to camera
 
-      UsbCamera cam = CameraServer.startAutomaticCapture(0);
-      try {
-        cam.setFPS(15); // TODO: make constant
+     
+      // try {
+      //    UsbCamera cam = CameraServer.startAutomaticCapture(0);
+      //   cam.setFPS(15); // TODO: make constant
 
-      } catch(Exception e)
-      {
-        DriverStation.reportWarning("Failed to init camera", false);
-      }
+      // } catch(Exception e)
+      // {
+      //   DriverStation.reportWarning("Failed to init camera", false);
+      // }
     
   }
 

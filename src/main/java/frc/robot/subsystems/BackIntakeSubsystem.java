@@ -1,17 +1,9 @@
 package frc.robot.subsystems;
 
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.SparkClosedLoopController;
-import com.revrobotics.spark.SparkLowLevel.MotorType;
-import com.revrobotics.spark.config.SparkMaxConfig;
-import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
-import com.revrobotics.RelativeEncoder;
-import com.revrobotics.spark.ClosedLoopSlot;
-import com.revrobotics.spark.SparkBase.ControlType;
-import com.revrobotics.spark.SparkBase.PersistMode;
-import com.revrobotics.spark.SparkBase.ResetMode;
-
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.PositionDutyCycle;
+import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 
 import edu.wpi.first.wpilibj.DigitalInput;
@@ -22,58 +14,35 @@ import static frc.robot.Constants.FuelConstants.*;
 
 public class BackIntakeSubsystem extends SubsystemBase {
 
-    private final SparkMax backIntakeLimb;
+    private final TalonFX backIntakeLimb;
     private final WPI_VictorSPX backIntakeRoller;
 
-    private final RelativeEncoder limbEncoder;
     private final DigitalInput limitSwitch;
-    private final SparkClosedLoopController pid;
 
     private static final double TOP_POSITION = 0;
     private static final double BOTTOM_POSITION = 0.6;
 
-
-
     public BackIntakeSubsystem() {
-        backIntakeLimb = new SparkMax(BACK_INTAKE_LIMB_MOTOR_ID, MotorType.kBrushed);
+        backIntakeLimb = new TalonFX(BACK_INTAKE_LIMB_MOTOR_ID);
         backIntakeRoller = new WPI_VictorSPX(BACK_INTAKE_MOTOR_ID);
+        
         limitSwitch = new DigitalInput(0);
 
-        pid = backIntakeLimb.getClosedLoopController();
-
-        SparkMaxConfig config = new SparkMaxConfig();
-        
-        config.closedLoop
-            .p(8.0)
-            .d(0.5)
-            .outputRange(-0.9, 0.9);
-
-        backIntakeLimb.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-
-        limbEncoder = backIntakeLimb.getEncoder();
-
         SmartDashboard.putNumber("Limb Position", 0);
-        SmartDashboard.putNumber("Get Voltage", backIntakeLimb.getBusVoltage());
-        SmartDashboard.putNumber("Get Output Current", backIntakeLimb.getOutputCurrent());
 
     }
 
     public void limbUp() {
-        pid.setReference(
-            TOP_POSITION,
-            ControlType.kPosition,
-            ClosedLoopSlot.kSlot0
-    );
-
-}
+    
+        backIntakeLimb.set(-1);
+        
+    }
 
     public void limbDown() {
-        pid.setReference(
-            BOTTOM_POSITION,
-            ControlType.kPosition,
-            ClosedLoopSlot.kSlot0
-    );
-}
+        
+        backIntakeLimb.set(0.3);
+        
+    }
 
     /**
      * Run back intake rollers forward at configured voltage
@@ -94,19 +63,16 @@ public class BackIntakeSubsystem extends SubsystemBase {
     /**
      * Stop all motors immediately and cut power
      */
-    public void stop() { 
-        backIntakeLimb.set(0);
+    public void stop() {
         backIntakeRoller.stopMotor();
         backIntakeLimb.stopMotor();
     }
 
     @Override
     public void periodic() {
-        // SmartDashboard telemetry for debugging and tuning
-        SmartDashboard.putNumber("Limb Position", limbEncoder.getPosition());
-        SmartDashboard.putBoolean("Limit Switch Pressed", !limitSwitch.get());
 
-        SmartDashboard.putNumber("Get Voltage", backIntakeLimb.getBusVoltage());
-        SmartDashboard.putNumber("Get Output Current", backIntakeLimb.getOutputCurrent());
+        // SmartDashboard telemetry for debugging and tuning
+         SmartDashboard.putNumber("Limb Position", backIntakeLimb.getPosition().getValueAsDouble());
+        // SmartDashboard.putBoolean("Limit Switch Pressed", !limitSwitch.get());
     }
 }
