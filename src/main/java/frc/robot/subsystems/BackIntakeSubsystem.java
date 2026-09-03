@@ -48,7 +48,7 @@ public class BackIntakeSubsystem extends SubsystemBase {
      * Run back intake rollers forward at configured voltage
      */
     public void BackIntake() {
-        double percent = SmartDashboard.getNumber("Intaking feeder roller value", INTAKING_FEEDER_VOLTAGE) / 12.0;
+        double percent = -1; // -SmartDashboard.getNumber("Intaking feeder roller value", INTAKING_FEEDER_VOLTAGE) / 12.0;
         backIntakeRoller.set(ControlMode.PercentOutput, percent);
     }
 
@@ -56,7 +56,7 @@ public class BackIntakeSubsystem extends SubsystemBase {
      * Run back intake rollers in reverse at configured voltage
      */
     public void revBackIntake() {
-        double percent = -SmartDashboard.getNumber("Intaking feeder roller value", INTAKING_FEEDER_VOLTAGE) / 12.0;
+        double percent = 1; // -SmartDashboard.getNumber("Intaking feeder roller value", INTAKING_FEEDER_VOLTAGE) / 12.0;
         backIntakeRoller.set(ControlMode.PercentOutput, percent);
     }
 

@@ -356,6 +356,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.FunctionalCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -364,6 +365,7 @@ import static frc.robot.Constants.FuelConstants.*;
 import org.ejml.simple.ops.WorkAroundForComplex;
 
 public class FuelSubsystem extends SubsystemBase {
+    private boolean isStoped = true;
 
     // ================= קבועי מהירות ו-PID נעולים בקוד =================
     private final double RPM_CLOSE = 3000.0; // מהירות לירי קרוב (כפתור A)
@@ -648,5 +650,18 @@ public class FuelSubsystem extends SubsystemBase {
         SmartDashboard.putNumber("Launcher Error", intakeSetpoint - intakeEncoder.getVelocity());
         SmartDashboard.putNumber("Shooter Error", shooterSetpoint - shooterRoller.getVelocity().getValueAsDouble() * 60.0);
         SmartDashboard.putBoolean("Launcher Ready", launcherAtSpeed(shooterSetpoint));
+    }
+
+        public Command warmUpStopToggleCommand(){
+        return new FunctionalCommand(
+            () -> {
+                if(isStoped)
+                    warmUpRoller();
+                else
+                    stopRoller();
+            },
+             () -> {},
+            interupted -> {},
+            () -> launcherAtSpeed(RPM_CLOSE), this).finallyDo(() -> {isStoped = !isStoped;});
     }
 }
