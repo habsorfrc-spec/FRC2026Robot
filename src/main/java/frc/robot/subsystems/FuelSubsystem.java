@@ -342,6 +342,7 @@ package frc.robot.subsystems;
 
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 
 import com.revrobotics.RelativeEncoder;
@@ -359,6 +360,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.FunctionalCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import com.ctre.phoenix6.controls.Follower;
 
 import static frc.robot.Constants.FuelConstants.*;
 
@@ -369,21 +371,22 @@ public class FuelSubsystem extends SubsystemBase {
 
     // ================= קבועי מהירות ו-PID נעולים בקוד =================
     private final double RPM_CLOSE = 3000.0; // מהירות לירי קרוב (כפתור A)
-    private final double RPM_FAR = 4000.0;   // מהירות לירי רחוק (כפתור Y)
+    private final double RPM_FAR = 4000.0; // מהירות לירי רחוק (כפתור Y)
     private final double RPM_DELIEVERY = 6000.0;
 
     private final double SPIN_UP_FEEDER_RPM = 2000.0;
     private final double SPIN_UP_INTAKE_RPM = -4500.0;
 
     // ערכי ה-PID של היורה (נעולים בקוד במקום מהדשבורד)
-    private final double SHOOTER_KP = 0.14;
+    private final double SHOOTER_KP = 0.30;
     private final double SHOOTER_KI = 0.0;
     private final double SHOOTER_KD = 0.0;
-    private final double SHOOTER_KV = 0.122;
+    private final double SHOOTER_KV = 0.13;
 
     private final SparkMax feederRoller;
     private final SparkMax intakeLauncherRoller;
     private final TalonFX shooterRoller;
+    private final TalonFX shooterFollower;
 
     private final RelativeEncoder feederEncoder;
     private final RelativeEncoder intakeEncoder;
@@ -407,6 +410,7 @@ public class FuelSubsystem extends SubsystemBase {
         intakeLauncherRoller = new SparkMax(INTAKE_LAUNCHER_MOTOR_ID, MotorType.kBrushless);
         feederRoller = new SparkMax(FEEDER_MOTOR_ID, MotorType.kBrushless);
         shooterRoller = new TalonFX(SHOOTER_ID);
+        shooterFollower = new TalonFX(SHOOTER_FOLLOWER_ID);
 
         feederEncoder = feederRoller.getEncoder();
         intakeEncoder = intakeLauncherRoller.getEncoder();
@@ -415,13 +419,13 @@ public class FuelSubsystem extends SubsystemBase {
         intakePID = intakeLauncherRoller.getClosedLoopController();
 
         configureMotors();
-        
+
         // מציג בדשבורד את המהירויות הקבועות ליופי בלבד
         SmartDashboard.putNumber("Target Feeder RPM", 3000);
         SmartDashboard.putNumber("Target Intake RPM", 3000);
         SmartDashboard.putNumber("Spin-up Feeder RPM", 2000);
 
-        //SmartDashboard.putData("Launch", new InstantCommand(this::launch));
+        // SmartDashboard.putData("Launch", new InstantCommand(this::launch));
     }
 
     private void configureMotors() {
@@ -460,11 +464,24 @@ public class FuelSubsystem extends SubsystemBase {
 
         // ================= TALON SHOOTER PID =================
         configureShooterPID();
+
+        // NEW: follower setup
+        TalonFXConfiguration followerConfig = new TalonFXConfiguration();
+        shooterFollower.getConfigurator().apply(followerConfig);
+
+        // If the follower spins the SAME physical direction as the master:
+        shooterFollower.setControl(new Follower(SHOOTER_ID, MotorAlignmentValue.Aligned));
+
+        // If it's mounted to spin the OPPOSITE direction (common on dual-roller
+        // shooters
+        // where one wheel needs to spin backward relative to the other to work
+        // together):
+        shooterFollower.setControl(new Follower(SHOOTER_ID, MotorAlignmentValue.Opposed));
     }
 
     private void configureShooterPID() {
         TalonFXConfiguration talonConfig = new TalonFXConfiguration();
-        
+
         // טעינת ערכי ה-PID מהקבועים של המחלקה
         talonConfig.Slot0.kP = SHOOTER_KP;
         talonConfig.Slot0.kI = SHOOTER_KI;
@@ -507,14 +524,13 @@ public class FuelSubsystem extends SubsystemBase {
         intakeLauncherRoller.setVoltage(INTAKING_INTAKE_VOLTAGE);
     }
 
-    public void warmUpRoller(){
+    public void warmUpRoller() {
         shooterRoller.setControl(shooterVelocityRequest.withVelocity(RPM_CLOSE / 60.0));
-        
+
     }
 
+    public void feedUp() {
 
-    public void feedUp(){
-        
         intakePID.setReference(-RPM_CLOSE, ControlType.kVelocity, ClosedLoopSlot.kSlot0);
         feederPID.setReference(-RPM_CLOSE, ControlType.kVelocity, ClosedLoopSlot.kSlot0);
     }
@@ -596,7 +612,7 @@ public class FuelSubsystem extends SubsystemBase {
         shooterSetpoint = 0;
     }
 
-    public void stopIntake(){
+    public void stopIntake() {
         feederRoller.stopMotor();
         intakeLauncherRoller.stopMotor();
 
@@ -608,17 +624,17 @@ public class FuelSubsystem extends SubsystemBase {
         pulseTimer.reset();
     }
 
-     public void stop(){
+    public void stop() {
         stopIntake();
         stopRoller();
     }
-
 
     public Command spinUpCommand() {
         return this.run(this::spinUp);
     }
 
-    // ================= פקודות חדשות עבור השלט (נקראות מרובוט קונטיינר) =================
+    // ================= פקודות חדשות עבור השלט (נקראות מרובוט קונטיינר)
+    // =================
 
     /**
      * פקודה לירי קרוב (3000 סל"ד)
@@ -634,10 +650,10 @@ public class FuelSubsystem extends SubsystemBase {
         return this.run(() -> this.eject(RPM_FAR)).finallyDo(this::stop);
     }
 
-    //פקודה לירי מהמרכז ( 6000 - Delievery)
+    // פקודה לירי מהמרכז ( 6000 - Delievery)
     public Command launchDelieveryCommand() {
-        return this.run( () -> this.eject(RPM_DELIEVERY)).finallyDo(this::stop);
-    } 
+        return this.run(() -> this.eject(RPM_DELIEVERY)).finallyDo(this::stop);
+    }
 
     @Override
     public void periodic() {
@@ -648,20 +664,25 @@ public class FuelSubsystem extends SubsystemBase {
         SmartDashboard.putNumber("Launcher Setpoint", intakeSetpoint);
         SmartDashboard.putNumber("Shooter Setpoint", shooterSetpoint);
         SmartDashboard.putNumber("Launcher Error", intakeSetpoint - intakeEncoder.getVelocity());
-        SmartDashboard.putNumber("Shooter Error", shooterSetpoint - shooterRoller.getVelocity().getValueAsDouble() * 60.0);
+        SmartDashboard.putNumber("Shooter Error",
+                shooterSetpoint - shooterRoller.getVelocity().getValueAsDouble() * 60.0);
         SmartDashboard.putBoolean("Launcher Ready", launcherAtSpeed(shooterSetpoint));
     }
 
-        public Command warmUpStopToggleCommand(){
+    public Command warmUpStopToggleCommand() {
         return new FunctionalCommand(
-            () -> {
-                if(isStoped)
-                    warmUpRoller();
-                else
-                    stopRoller();
-            },
-             () -> {},
-            interupted -> {},
-            () -> launcherAtSpeed(RPM_CLOSE), this).finallyDo(() -> {isStoped = !isStoped;});
+                () -> {
+                    if (isStoped)
+                        warmUpRoller();
+                    else
+                        stopRoller();
+                },
+                () -> {
+                },
+                interupted -> {
+                },
+                () -> launcherAtSpeed(RPM_CLOSE), this).finallyDo(() -> {
+                    isStoped = !isStoped;
+                });
     }
 }

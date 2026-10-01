@@ -120,17 +120,17 @@ public class RobotContainer {
                                                                 () -> ballSubsystem.stop()));
 
                 // Elevator up
-                operatorController.rightTrigger(0.1)
+                operatorController.rightBumper()
                                 .whileTrue(
                                                 elevSubsystem.runEnd(
                                                                 () -> elevSubsystem.elevateUp(),
                                                                 () -> elevSubsystem.stop()));
 
                 // Elevator down
-                operatorController.leftTrigger(0.1)
+                operatorController.leftBumper()
                                 .whileTrue(
                                                 elevSubsystem.runEnd(
-                                                                () -> elevSubsystem.elevateDown(-5),
+                                                                () -> elevSubsystem.elevateDown(),
                                                                 () -> elevSubsystem.stop()));
 
                 // Eject (ירי קרוב - כפתור A)
@@ -144,7 +144,7 @@ public class RobotContainer {
 
                 // Shoot Far (ירי רחוק - כפתור Y החדש!)
                 operatorController.y()
-                                .whileTrue(getShootFarCommand());
+                                .whileTrue(getDelieveryCommand());
 
                 operatorController.povRight().toggleOnTrue(ballSubsystem.warmUpStopToggleCommand());
 
@@ -152,14 +152,14 @@ public class RobotContainer {
                                 .toggleOnTrue(ChangeSpeed());             
 
                 // Back intake
-                operatorController.rightBumper()
+                operatorController.rightTrigger()
                                 .whileTrue(
                                                 backSubsystem.runEnd(
                                                                 () -> backSubsystem.BackIntake(),
                                                                 () -> backSubsystem.stop()));
 
                 // Reverse back intake + intake
-                operatorController.leftBumper()
+                operatorController.leftTrigger()
                                 .whileTrue(
                                                   backSubsystem.runEnd(
                                                                 () -> backSubsystem.revBackIntake(),
@@ -209,7 +209,7 @@ public class RobotContainer {
 
         public Command getDownCommand() {
                 return elevSubsystem.runEnd(
-                                () -> elevSubsystem.elevateDown(0),
+                                () -> elevSubsystem.elevateDown(),
                                 () -> elevSubsystem.stop());
         }
 
@@ -233,7 +233,7 @@ public class RobotContainer {
         }
 
        
-        public Command getShootFarCommand() {
+    public Command getShootFarCommand() {
                 return ballSubsystem.launchFarCommand().alongWith(
                                 backSubsystem.runEnd(
                                                 () -> backSubsystem.BackIntake(),

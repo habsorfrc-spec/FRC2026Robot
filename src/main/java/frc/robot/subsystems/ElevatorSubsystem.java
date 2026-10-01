@@ -67,7 +67,7 @@ public class ElevatorSubsystem extends SubsystemBase {
         follower.set(1.0);
     }
 
-    public void elevateDown(int limit) {
+    public void elevateDown() {
             leader.setControl(duty.withOutput(-1.0));
             follower.set(-1.0);
     }
