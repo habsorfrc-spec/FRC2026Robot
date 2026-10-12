@@ -1,8 +1,6 @@
 package frc.robot.subsystems;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.PositionDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 
@@ -10,7 +8,8 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
-import static frc.robot.Constants.FuelConstants.*;
+import static frc.robot.Constants.BackIntakeConstants.*;
+import static frc.robot.Constants.FuelConstants.*; // for INTAKING_FEEDER_VOLTAGE in the commented-out code below
 
 public class BackIntakeSubsystem extends SubsystemBase {
 
@@ -25,24 +24,23 @@ public class BackIntakeSubsystem extends SubsystemBase {
     public BackIntakeSubsystem() {
         backIntakeLimb = new TalonFX(BACK_INTAKE_LIMB_MOTOR_ID);
         backIntakeRoller = new WPI_VictorSPX(BACK_INTAKE_MOTOR_ID);
-        
+
         limitSwitch = new DigitalInput(0);
 
         SmartDashboard.putNumber("Limb Position", 0);
-
     }
 
+    // ================= LIMB =================
+
     public void limbUp() {
-    
         backIntakeLimb.set(-1);
-        
     }
 
     public void limbDown() {
-        
         backIntakeLimb.set(0.3);
-        
     }
+
+    // ================= ROLLERS =================
 
     /**
      * Run back intake rollers forward at configured voltage
@@ -60,6 +58,8 @@ public class BackIntakeSubsystem extends SubsystemBase {
         backIntakeRoller.set(ControlMode.PercentOutput, percent);
     }
 
+    // ================= STOP =================
+
     /**
      * Stop all motors immediately and cut power
      */
@@ -68,11 +68,12 @@ public class BackIntakeSubsystem extends SubsystemBase {
         backIntakeLimb.stopMotor();
     }
 
+    // ================= DASHBOARD =================
+
     @Override
     public void periodic() {
-
         // SmartDashboard telemetry for debugging and tuning
-         SmartDashboard.putNumber("Limb Position", backIntakeLimb.getPosition().getValueAsDouble());
+        SmartDashboard.putNumber("Limb Position", backIntakeLimb.getPosition().getValueAsDouble());
         // SmartDashboard.putBoolean("Limit Switch Pressed", !limitSwitch.get());
     }
 }

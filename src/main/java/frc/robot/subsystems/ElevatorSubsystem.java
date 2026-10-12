@@ -1,4 +1,4 @@
-///  קוד של עידן 
+///  קוד של עידן
 package frc.robot.subsystems;
 
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -23,7 +23,7 @@ public class ElevatorSubsystem extends SubsystemBase {
 
     // --- הגדרת בקרי המנועים ---
     private final TalonFX leader = new TalonFX(ELEVATOR_MOTOR_ID);
-    
+
     // מנוע פחמים (CIM) מחובר ל-SparkMax
     private final SparkMax follower = new SparkMax(ELEVATOR_MOTOR_FOLLOWER_ID, MotorType.kBrushed);
 
@@ -35,42 +35,53 @@ public class ElevatorSubsystem extends SubsystemBase {
         // ----------------------------------------
         TalonFXConfiguration talonConfig = new TalonFXConfiguration();
         leader.getConfigurator().apply(talonConfig);
-        
+
         // איפוס אנקודר ל-0 בהפעלה
         leader.setPosition(0);
-        
-        // שינוי: המנוע הראשי הועבר למצב Coast (חופשי)
-        leader.setNeutralMode(NeutralModeValue.Brake);
 
+        // שינוי: המנוע הראשי הועבר למצב Brake (בלימה)
+        leader.setNeutralMode(NeutralModeValue.Brake);
 
         // ----------------------------------------
         // הגדרת המנוע המשני (SparkMax - REVLib 2025/2026)
         // ----------------------------------------
         SparkMaxConfig sparkConfig = new SparkMaxConfig();
-        
+
         // שינוי: המנוע המשני הועבר למצב Coast (חופשי)
         sparkConfig.idleMode(IdleMode.kCoast);
-        
+
         // כיוון המנוע (משאיר על true כדי שיעבדו יחד)
-        sparkConfig.inverted(true); 
+        sparkConfig.inverted(true);
 
         // החלת הגדרות וצריבה לזיכרון של הבקר
         follower.configure(
-            sparkConfig,
-            ResetMode.kResetSafeParameters, 
-            PersistMode.kPersistParameters  
-        );
+                sparkConfig,
+                ResetMode.kResetSafeParameters,
+                PersistMode.kPersistParameters);
     }
+
+    // ================= MOVE =================
 
     public void elevateUp() {
         leader.setControl(duty.withOutput(1.0));
         follower.set(1.0);
+        
     }
 
     public void elevateDown() {
-            leader.setControl(duty.withOutput(-1.0));
-            follower.set(-1.0);
+        leader.setControl(duty.withOutput(-1.0));
+        follower.set(-1.0);
     }
+
+    // ================= STOP =================
+
+    public void stop() {
+        // עצירת שני המנועים לחלוטין
+        leader.setControl(duty.withOutput(0));
+        follower.stopMotor();
+    }
+
+    // ================= DASHBOARD =================
 
     @Override
     public void periodic() {
@@ -78,11 +89,5 @@ public class ElevatorSubsystem extends SubsystemBase {
         double pos = leader.getPosition().getValueAsDouble();
         SmartDashboard.putNumber("Elev pos", pos);
         SmartDashboard.putNumber("Elev 2 pos", follower.getOutputCurrent());
-    }
-
-    public void stop() {
-        // עצירת שני המנועים לחלוטין
-        leader.setControl(duty.withOutput(0));
-        follower.stopMotor();
     }
 }

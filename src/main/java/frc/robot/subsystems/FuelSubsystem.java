@@ -344,6 +344,7 @@ import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.Follower;
 
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.ClosedLoopSlot;
@@ -358,23 +359,20 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.FunctionalCommand;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.InstantCommand; // for the commented-out "Launch" line in the constructor
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import com.ctre.phoenix6.controls.Follower;
 
 import static frc.robot.Constants.FuelConstants.*;
-
-import org.ejml.simple.ops.WorkAroundForComplex;
 
 public class FuelSubsystem extends SubsystemBase {
     private boolean isStoped = true;
 
     // ================= קבועי מהירות ו-PID נעולים בקוד =================
-    private final double RPM_CLOSE = 3000.0; // מהירות לירי קרוב (כפתור A)
+    private final double RPM_CLOSE = 3500; // מהירות לירי קרוב (כפתור A)
     private final double RPM_FAR = 4000.0; // מהירות לירי רחוק (כפתור Y)
     private final double RPM_DELIEVERY = 6000.0;
 
-    private final double SPIN_UP_FEEDER_RPM = 2000.0;
+    private final double SPIN_UP_FEEDER_RPM = 4000.0;
     private final double SPIN_UP_INTAKE_RPM = -4500.0;
 
     // ערכי ה-PID של היורה (נעולים בקוד במקום מהדשבורד)
@@ -428,6 +426,8 @@ public class FuelSubsystem extends SubsystemBase {
         // SmartDashboard.putData("Launch", new InstantCommand(this::launch));
     }
 
+    // ================= SETUP =================
+
     private void configureMotors() {
         // ================= FEEDER =================
         SparkMaxConfig feederConfig = new SparkMaxConfig();
@@ -472,10 +472,8 @@ public class FuelSubsystem extends SubsystemBase {
         // If the follower spins the SAME physical direction as the master:
         shooterFollower.setControl(new Follower(SHOOTER_ID, MotorAlignmentValue.Aligned));
 
-        // If it's mounted to spin the OPPOSITE direction (common on dual-roller
-        // shooters
-        // where one wheel needs to spin backward relative to the other to work
-        // together):
+        // If it's mounted to spin the OPPOSITE direction (common on dual-roller shooters
+        // where one wheel needs to spin backward relative to the other to work together):
         shooterFollower.setControl(new Follower(SHOOTER_ID, MotorAlignmentValue.Opposed));
     }
 
@@ -494,6 +492,8 @@ public class FuelSubsystem extends SubsystemBase {
     public void setPIDF() {
         // עידן היה פה
     }
+
+    // ================= MOTOR ACTIONS =================
 
     public void setTargetRPM(double feederRPM, double intakeRPM) {
         feederSetpoint = feederRPM;
@@ -531,8 +531,8 @@ public class FuelSubsystem extends SubsystemBase {
 
     public void feedUp() {
 
-        intakePID.setReference(-RPM_CLOSE, ControlType.kVelocity, ClosedLoopSlot.kSlot0);
-        feederPID.setReference(-RPM_CLOSE, ControlType.kVelocity, ClosedLoopSlot.kSlot0);
+        intakePID.setReference(-5500, ControlType.kVelocity, ClosedLoopSlot.kSlot0);
+        feederPID.setReference(-5500, ControlType.kVelocity, ClosedLoopSlot.kSlot0);
     }
 
     // מנוע הפולסים החכם שמקבל את מהירות היעד ישירות מהפקודה שנבחרה
@@ -585,6 +585,8 @@ public class FuelSubsystem extends SubsystemBase {
         setTargetRPM(SPIN_UP_FEEDER_RPM, SPIN_UP_INTAKE_RPM);
     }
 
+    // ================= SPEED CHECK =================
+
     public boolean launcherAtSpeed(double targetRPM) {
         double currentRPM = shooterRoller.getVelocity().getValueAsDouble() * 60.0;
         double error = Math.abs(currentRPM - targetRPM);
@@ -605,6 +607,8 @@ public class FuelSubsystem extends SubsystemBase {
 
         return false;
     }
+
+    // ================= STOP =================
 
     public void stopRoller() {
         shooterRoller.stopMotor();
@@ -629,12 +633,13 @@ public class FuelSubsystem extends SubsystemBase {
         stopRoller();
     }
 
+    // ================= COMMANDS =================
+
     public Command spinUpCommand() {
         return this.run(this::spinUp);
     }
 
-    // ================= פקודות חדשות עבור השלט (נקראות מרובוט קונטיינר)
-    // =================
+    // ================= פקודות חדשות עבור השלט (נקראות מרובוט קונטיינר) =================
 
     /**
      * פקודה לירי קרוב (3000 סל"ד)
@@ -655,9 +660,28 @@ public class FuelSubsystem extends SubsystemBase {
         return this.run(() -> this.eject(RPM_DELIEVERY)).finallyDo(this::stop);
     }
 
+    // POV Right: shooter warm-up on/off
+    public Command warmUpStopToggleCommand() {
+        return new FunctionalCommand(
+                () -> {
+                    if (isStoped)
+                        warmUpRoller();
+                    else
+                        stopRoller();
+                },
+                () -> {},
+                interupted -> {},
+                () -> launcherAtSpeed(RPM_CLOSE), this)
+                .finallyDo(() -> {
+                    isStoped = !isStoped;
+                });
+    }
+
+    // ================= DASHBOARD =================
+
     @Override
     public void periodic() {
-        // שידור נתונים בלבד למסך של הנהגים (אין קריאות חוזרות מהדשבורד)
+        // שידור נתונים בלבד למסך של 5הנהגים (אין קריאות חוזרות מהדשבורד)
         SmartDashboard.putNumber("Feeder Velocity", feederEncoder.getVelocity());
         SmartDashboard.putNumber("Launcher Velocity", intakeEncoder.getVelocity());
         SmartDashboard.putNumber("Shooter Roller RPM", shooterRoller.getVelocity().getValueAsDouble() * 60.0);
@@ -667,22 +691,5 @@ public class FuelSubsystem extends SubsystemBase {
         SmartDashboard.putNumber("Shooter Error",
                 shooterSetpoint - shooterRoller.getVelocity().getValueAsDouble() * 60.0);
         SmartDashboard.putBoolean("Launcher Ready", launcherAtSpeed(shooterSetpoint));
-    }
-
-    public Command warmUpStopToggleCommand() {
-        return new FunctionalCommand(
-                () -> {
-                    if (isStoped)
-                        warmUpRoller();
-                    else
-                        stopRoller();
-                },
-                () -> {
-                },
-                interupted -> {
-                },
-                () -> launcherAtSpeed(RPM_CLOSE), this).finallyDo(() -> {
-                    isStoped = !isStoped;
-                });
     }
 }
