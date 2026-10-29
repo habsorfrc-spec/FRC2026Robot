@@ -38,65 +38,47 @@ public class CANDriveSubsystem extends SubsystemBase {
     // =========================
     // Motors
     // =========================
-    private final SparkMax leftLeader =
-            new SparkMax(LEFT_LEADER_ID, MotorType.kBrushed);
+    private final SparkMax leftLeader = new SparkMax(LEFT_LEADER_ID, MotorType.kBrushed);
 
-    private final SparkMax leftFollower =
-            new SparkMax(LEFT_FOLLOWER_ID, MotorType.kBrushed);
+    private final SparkMax leftFollower = new SparkMax(LEFT_FOLLOWER_ID, MotorType.kBrushed);
 
-    private final SparkMax rightLeader =
-            new SparkMax(RIGHT_LEADER_ID, MotorType.kBrushed);
+    private final SparkMax rightLeader = new SparkMax(RIGHT_LEADER_ID, MotorType.kBrushed);
 
-    private final SparkMax rightFollower =
-            new SparkMax(RIGHT_FOLLOWER_ID, MotorType.kBrushed);
+    private final SparkMax rightFollower = new SparkMax(RIGHT_FOLLOWER_ID, MotorType.kBrushed);
 
-    private final DifferentialDrive drive =
-            new DifferentialDrive(leftLeader, rightLeader);
+    private final DifferentialDrive drive = new DifferentialDrive(leftLeader, rightLeader);
 
     // =========================
     // Gyro (navX2 on MXP)
     // =========================
-    private final AHRS gyro = new AHRS(NavXComType.kMXP_SPI);
+    // private final AHRS gyro = new AHRS(NavXComType.kMXP_SPI);
 
     // =========================
     // Turn PID
     // =========================
-    private final PIDController turnPID =
-            new PIDController(0.02, 0.0, 0.002); // Stronger P and D
+    private final PIDController turnPID = new PIDController(0.02, 0.0, 0.002); // Stronger P and D
 
     public CANDriveSubsystem() {
 
-        // Leader config
-        SparkMaxConfig leaderConfig = new SparkMaxConfig();
-        leaderConfig.voltageCompensation(12);
-        leaderConfig.smartCurrentLimit(DRIVE_MOTOR_CURRENT_LIMIT);
+        /// Right leader
+        SparkMaxConfig rightConfig = new SparkMaxConfig();
+        rightConfig.voltageCompensation(12);
+        rightConfig.smartCurrentLimit(DRIVE_MOTOR_CURRENT_LIMIT);
+        rightConfig.inverted(false);
 
-        // Apply to RIGHT leader first
         rightLeader.configure(
-                leaderConfig,
+                rightConfig,
                 ResetMode.kResetSafeParameters,
                 PersistMode.kPersistParameters);
 
-        // Invert LEFT side
-        leaderConfig.inverted(true);
+        // Left leader
+        SparkMaxConfig leftConfig = new SparkMaxConfig();
+        leftConfig.voltageCompensation(12);
+        leftConfig.smartCurrentLimit(DRIVE_MOTOR_CURRENT_LIMIT);
+        leftConfig.inverted(true);
 
         leftLeader.configure(
-                leaderConfig,
-                ResetMode.kResetSafeParameters,
-                PersistMode.kPersistParameters);
-
-        // Followers
-        SparkMaxConfig followerConfig = new SparkMaxConfig();
-
-        followerConfig.follow(leftLeader);
-        leftFollower.configure(
-                followerConfig,
-                ResetMode.kResetSafeParameters,
-                PersistMode.kPersistParameters);
-
-        followerConfig.follow(rightLeader);
-        rightFollower.configure(
-                followerConfig,
+                leftConfig,
                 ResetMode.kResetSafeParameters,
                 PersistMode.kPersistParameters);
 
@@ -104,14 +86,16 @@ public class CANDriveSubsystem extends SubsystemBase {
         turnPID.enableContinuousInput(-180, 180);
         turnPID.setTolerance(2.0);
         drive.setSafetyEnabled(false);
-        gyro.reset();
+        // gyro.reset();
     }
 
     // =========================
     // Drive Methods
     // =========================
     public void arcadeDrive(double xSpeed, double zRotation) {
-        drive.arcadeDrive(xSpeed, zRotation);
+        drive.arcadeDrive(
+                xSpeed * DRIVE_SCALING,
+                zRotation * ROTATION_SCALING);
     }
 
     public Command driveArcade(DoubleSupplier xSpeed, DoubleSupplier zRotation) {
@@ -143,7 +127,8 @@ public class CANDriveSubsystem extends SubsystemBase {
                     }
                 },
 
-                () -> {},
+                () -> {
+                },
 
                 interrupted -> stop(),
 
@@ -155,35 +140,33 @@ public class CANDriveSubsystem extends SubsystemBase {
     // =========================
     // RELATIVE TURN METHOD
     // =========================
-    public Command turnRelative(double degrees) {
-        gyro.reset();
-        return runOnce(() -> {
-            double target = gyro.getYaw() + degrees;
-            turnPID.setSetpoint(target);
-        })
-        .andThen(
-            runEnd(
-                () -> {
+    // public Command turnRelative(double degrees) {
+    //     gyro.reset();
+    //     return runOnce(() -> {
+    //         double target = gyro.getYaw() + degrees;
+    //         turnPID.setSetpoint(target);
+    //     })
+    //             .andThen(
+    //                     runEnd(
+    //                             () -> {
 
-                    double output = turnPID.calculate(gyro.getYaw());
+    //                                 double output = turnPID.calculate(gyro.getYaw());
 
-                    // Static friction compensation
-                    double kS = 0.12;
+    //                                 // Static friction compensation
+    //                                 double kS = 0.12;
 
-                    if (Math.abs(output) > 0.02) {
-                        output += Math.copySign(kS, output);
-                    }
+    //                                 if (Math.abs(output) > 0.02) {
+    //                                     output += Math.copySign(kS, output);
+    //                                 }
 
-                    // Clamp
-                    output = Math.max(Math.min(output, 0.6), -0.6);
+    //                                 // Clamp
+    //                                 output = Math.max(Math.min(output, 0.6), -0.6);
 
-                    drive.tankDrive(output, -output);
+    //                                 drive.tankDrive(output, -output);
 
-                },
-                this::stop
-            ).until(turnPID::atSetpoint)
-        );
-    }
+    //                             },
+    //                             this::stop).until(turnPID::atSetpoint));
+    // }
 
     // =========================
     // DRIVE DISTANCE (used by the autos)
@@ -218,7 +201,10 @@ public class CANDriveSubsystem extends SubsystemBase {
         else if (maxSpeed < 0)
             maxSpeed = 0.2;
 
-        PIDController pidController = new PIDController(DriveConstants.kp, DriveConstants.ki, DriveConstants.kd);// new PIDController(DriveConstants.kp, DriveConstants.ki, DriveConstants.kd);
+        PIDController pidController = new PIDController(DriveConstants.kp, DriveConstants.ki, DriveConstants.kd);// new
+                                                                                                                 // PIDController(DriveConstants.kp,
+                                                                                                                 // DriveConstants.ki,
+                                                                                                                 // DriveConstants.kd);
         if (!isOnPos(distance) && start1 - System.currentTimeMillis() < 2000) {
             driveForward(pidController.calculate(getRelativeDistance(), distance) * maxSpeed);
             start2 = System.currentTimeMillis();
@@ -256,11 +242,12 @@ public class CANDriveSubsystem extends SubsystemBase {
     // =========================
     @Override
     public void periodic() {
-        SmartDashboard.putNumber("Yaw", gyro.getYaw());
+        // SmartDashboard.putNumber("Yaw", gyro.getYaw());
         SmartDashboard.putNumber("Turn Error", turnPID.getPositionError());
         kp = SmartDashboard.getNumber("kp", kp);
         kd = SmartDashboard.getNumber("kd", kd);
         ki = SmartDashboard.getNumber("ki", ki);
         SmartDashboard.putNumber("Average distance", getRelativeDistance());
+        
     }
 }

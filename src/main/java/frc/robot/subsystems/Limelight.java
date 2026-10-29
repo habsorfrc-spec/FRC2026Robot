@@ -2,9 +2,11 @@
 package frc.robot.subsystems;
 
 import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.LimelightHelpers;
 
-public class Limelight {
+public class Limelight extends SubsystemBase{
 
     private static final String LIMELIGHT_NAME = "limelight";
 
@@ -105,5 +107,13 @@ public class Limelight {
         }
 
         return getShooterRPM(distance);
+    }
+
+    @Override
+    public void periodic()
+    {
+        SmartDashboard.putNumber("DISTANCE", getDistanceMeters());
+         SmartDashboard.putNumber("RPM", getCalculatedShooterRPM());
+          SmartDashboard.putNumber("Angle", LimelightHelpers.getTX("limelight"));
     }
 }

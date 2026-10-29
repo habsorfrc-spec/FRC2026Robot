@@ -68,13 +68,13 @@ public final class Autos {
     }
 
     // "Shoot & Climb"
-    public Command getCombinedCommand() {
-        return getShootAuto().andThen(driveSubsystem.turnRelative(180))
-                .andThen(new ElevatorUpCommand(elevSubsystem).withTimeout(0.7))
-                .andThen(driveSubsystem.driveDistance(7.4, 0.4, 1000)
-                        .raceWith(new WaitCommand(3)))
-                .andThen(new ElevatorDownCommand(elevSubsystem).withTimeout(1.5));
-    }
+    // public Command getCombinedCommand() {
+    //     return getShootAuto().andThen(driveSubsystem.turnRelative(180))
+    //             .andThen(new ElevatorUpCommand(elevSubsystem).withTimeout(0.7))
+    //             .andThen(driveSubsystem.driveDistance(7.4, 0.4, 1000)
+    //                     .raceWith(new WaitCommand(3)))
+    //             .andThen(new ElevatorDownCommand(elevSubsystem).withTimeout(1.5));
+    // }
 
     // =========================
     // NOT USED RIGHT NOW (kept for building new autos)
@@ -88,9 +88,9 @@ public final class Autos {
         return driveSubsystem.driveDistance(-2.0, 0.6, 1000);
     }
 
-    public Command getSpin1() {
-        return driveSubsystem.turnRelative(180);
-    }
+    // public Command getSpin1() {
+    //     return driveSubsystem.turnRelative(180);
+    // }
 
     // Example autonomous command which drives forward for 1 second.
     public static final Command exampleAuto(CANDriveSubsystem driveSubsystem, FuelSubsystem ballSubsystem) {

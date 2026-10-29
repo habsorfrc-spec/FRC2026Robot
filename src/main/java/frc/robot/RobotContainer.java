@@ -4,6 +4,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 import static frc.robot.Constants.OperatorConstants.*;
@@ -24,6 +25,7 @@ import frc.robot.subsystems.CANDriveSubsystem;
 import frc.robot.subsystems.FuelSubsystem;
 import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.BackIntakeSubsystem;
+import frc.robot.subsystems.Limelight;
 
 // =========================
 // BUTTON MAP - operator controller (port 1)
@@ -56,6 +58,7 @@ public class RobotContainer {
     private final FuelSubsystem ballSubsystem = new FuelSubsystem();
     private final BackIntakeSubsystem backSubsystem = new BackIntakeSubsystem();
     private final ElevatorSubsystem elevSubsystem = new ElevatorSubsystem();
+    private final Limelight limeSubsystems = new Limelight();
 
     // Controllers
     private final CommandXboxController driverController = new CommandXboxController(DRIVER_CONTROLLER_PORT);
@@ -109,7 +112,24 @@ public class RobotContainer {
         operatorController.y().whileTrue(new DeliveryShotCommand(ballSubsystem, backSubsystem));
 
         // Shooter warm-up on/off
-        operatorController.povRight().toggleOnTrue(ballSubsystem.warmUpStopToggleCommand());
+        operatorController.povRight().toggleOnTrue(ballSubsystem.warmUpStopToggleCommand(3500));
+
+        // Auto-aim while holding the left-stick button
+        operatorController.leftStick().whileTrue(
+            new RunCommand(
+                () -> {
+                    double forward = -operatorController.getLeftY();
+
+                    double tx = LimelightHelpers.getTX("limelight");
+                    double rotation = -tx * 0.05;
+
+                    driveSubsystem.arcadeDrive(forward, rotation);
+                },
+                driveSubsystem
+            )
+        );
+
+        
     }
 
     // Sticks, POV Left
@@ -149,7 +169,7 @@ public class RobotContainer {
         autoChooser.setDefaultOption("Test Drive Auto", autos.getTestDriveAuto());
         autoChooser.addOption("Shoot Auto", autos.getShootAuto());
         autoChooser.addOption("Climb Auto", autos.getClimbAuto());
-        autoChooser.addOption("Shoot & Climb", autos.getCombinedCommand());
+        //autoChooser.addOption("Shoot & Climb", autos.getCombinedCommand());
 
         // Show chooser on dashboard
         SmartDashboard.putData("Auto Mode", autoChooser);
